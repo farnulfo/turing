@@ -1,0 +1,625 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Machine de Turing — Somme d'un tableau d'entiers</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #111827;
+      --panel-2: #1f2937;
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+      --accent: #38bdf8;
+      --green: #22c55e;
+      --red: #ef4444;
+      --yellow: #facc15;
+      --cell: #334155;
+      --cell-border: #64748b;
+      --head: #f97316;
+      --marked: #a855f7;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: radial-gradient(circle at top, #1e293b, var(--bg));
+      color: var(--text);
+      min-height: 100vh;
+      padding: 24px;
+    }
+
+    main {
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      font-size: clamp(1.6rem, 3vw, 2.4rem);
+      margin: 0 0 8px;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      margin-bottom: 24px;
+      line-height: 1.5;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 16px;
+    }
+
+    @media (min-width: 900px) {
+      .grid {
+        grid-template-columns: 380px 1fr;
+      }
+    }
+
+    .card {
+      background: rgba(17, 24, 39, 0.9);
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      border-radius: 18px;
+      padding: 18px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+    }
+
+    label {
+      display: block;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    input {
+      width: 100%;
+      padding: 12px 14px;
+      border-radius: 12px;
+      border: 1px solid #475569;
+      background: #020617;
+      color: var(--text);
+      font-size: 1rem;
+      outline: none;
+    }
+
+    input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.15);
+    }
+
+    .hint {
+      color: var(--muted);
+      font-size: 0.9rem;
+      margin-top: 8px;
+      line-height: 1.4;
+    }
+
+    .buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    button {
+      border: 0;
+      border-radius: 999px;
+      padding: 10px 14px;
+      background: var(--accent);
+      color: #082f49;
+      font-weight: 800;
+      cursor: pointer;
+      transition: transform 120ms ease, filter 120ms ease;
+    }
+
+    button.secondary {
+      background: #475569;
+      color: var(--text);
+    }
+
+    button.danger {
+      background: var(--red);
+      color: #fff;
+    }
+
+    button:hover { transform: translateY(-1px); filter: brightness(1.05); }
+    button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+    .state-panel {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .state-box {
+      background: var(--panel-2);
+      border-radius: 14px;
+      padding: 12px;
+      min-height: 72px;
+    }
+
+    .state-box strong {
+      display: block;
+      color: var(--muted);
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 6px;
+    }
+
+    .state-box span {
+      font-size: 1.05rem;
+      font-weight: 800;
+    }
+
+    .tape-wrapper {
+      overflow-x: auto;
+      padding: 20px 4px 8px;
+      border-radius: 16px;
+      background: #020617;
+      border: 1px solid rgba(148, 163, 184, 0.2);
+    }
+
+    .tape {
+      display: flex;
+      align-items: flex-start;
+      gap: 6px;
+      min-width: max-content;
+      padding: 12px 8px 28px;
+    }
+
+    .cell-block {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .cell {
+      width: 42px;
+      height: 42px;
+      display: grid;
+      place-items: center;
+      border-radius: 10px;
+      border: 1px solid var(--cell-border);
+      background: var(--cell);
+      font-weight: 900;
+      font-size: 1.05rem;
+    }
+
+    .cell.one { background: #064e3b; border-color: #10b981; }
+    .cell.marked { background: #4c1d95; border-color: var(--marked); }
+    .cell.sep { background: #1e293b; color: var(--yellow); }
+    .cell.pipe { background: #172554; color: #93c5fd; }
+    .cell.blank { color: #64748b; }
+    .cell.start { background: #451a03; color: #fed7aa; }
+
+    .head-marker {
+      height: 24px;
+      color: var(--head);
+      font-size: 1.2rem;
+      line-height: 1;
+      opacity: 0;
+    }
+
+    .cell-block.active .head-marker {
+      opacity: 1;
+      animation: bounce 0.7s infinite alternate;
+    }
+
+    .cell-block.active .cell {
+      outline: 3px solid rgba(249, 115, 22, 0.55);
+      box-shadow: 0 0 0 6px rgba(249, 115, 22, 0.12);
+    }
+
+    @keyframes bounce {
+      from { transform: translateY(0); }
+      to { transform: translateY(4px); }
+    }
+
+    .explanation {
+      margin-top: 16px;
+      padding: 14px;
+      background: #020617;
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      border-radius: 14px;
+      line-height: 1.5;
+    }
+
+    .explanation strong { color: var(--accent); }
+
+    .program {
+      margin-top: 16px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.9rem;
+      line-height: 1.55;
+      background: #020617;
+      border-radius: 14px;
+      padding: 14px;
+      white-space: pre-wrap;
+      color: #cbd5e1;
+      border: 1px solid rgba(148, 163, 184, 0.2);
+    }
+
+    .ok { color: var(--green); }
+    .halt { color: var(--yellow); }
+    .error { color: var(--red); }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Machine de Turing : somme d'un tableau d'entiers</h1>
+    <p class="subtitle">
+      Cette page illustre une machine de Turing très simple. Les entiers sont encodés en unaire :
+      <strong>3</strong> devient <strong>111</strong>, <strong>2</strong> devient <strong>11</strong>, etc.
+      La machine remplace chaque <strong>1</strong> du tableau par <strong>x</strong>, puis ajoute un <strong>1</strong> dans la zone résultat.
+    </p>
+
+    <div class="grid">
+      <section class="card">
+        <label for="arrayInput">Tableau d'entiers</label>
+        <input id="arrayInput" value="3,2,4" autocomplete="off" />
+        <div class="hint">Exemples : <code>3,2,4</code>, <code>1,0,5</code>, <code>4,1</code>. Les valeurs négatives ne sont pas prises en charge dans cet encodage.</div>
+
+        <div class="buttons">
+          <button id="loadBtn">Charger</button>
+          <button id="stepBtn">Une étape</button>
+          <button id="backBtn" class="secondary">Étape précédente</button>
+          <button id="runBtn">Lancer</button>
+          <button id="pauseBtn" class="secondary">Pause</button>
+          <button id="resetBtn" class="danger">Réinitialiser</button>
+        </div>
+
+        <div class="state-panel">
+          <div class="state-box">
+            <strong>État courant</strong>
+            <span id="stateView">q0</span>
+          </div>
+          <div class="state-box">
+            <strong>Position tête</strong>
+            <span id="headView">0</span>
+          </div>
+          <div class="state-box">
+            <strong>Étapes</strong>
+            <span id="stepsView">0</span>
+          </div>
+          <div class="state-box">
+            <strong>Somme décodée</strong>
+            <span id="sumView">0</span>
+          </div>
+        </div>
+
+        <div class="program" aria-label="Programme de la machine de Turing">Transitions de la machine de Turing :
+
+Notation :
+δ(état, symbole lu) = (nouvel état, symbole écrit, déplacement)
+R = droite, L = gauche
+
+δ(q0, ⊢) = (q_scan, ⊢, R)
+
+Recherche d'un 1 non consommé dans le tableau :
+δ(q_scan, #) = (q_scan, #, R)
+δ(q_scan, x) = (q_scan, x, R)
+δ(q_scan, 1) = (q_go_result, x, R)
+δ(q_scan, |) = (q_halt, |, R)
+δ(q_scan, □) = (q_scan, □, R)
+
+Aller vers la zone résultat :
+δ(q_go_result, #) = (q_go_result, #, R)
+δ(q_go_result, x) = (q_go_result, x, R)
+δ(q_go_result, 1) = (q_go_result, 1, R)
+δ(q_go_result, |) = (q_append, |, R)
+
+Ajouter 1 à la fin du résultat :
+δ(q_append, 1) = (q_append, 1, R)
+δ(q_append, □) = (q_return, 1, L)
+
+Revenir au début du ruban :
+δ(q_return, 1) = (q_return, 1, L)
+δ(q_return, x) = (q_return, x, L)
+δ(q_return, #) = (q_return, #, L)
+δ(q_return, |) = (q_return, |, L)
+δ(q_return, □) = (q_return, □, L)
+δ(q_return, ⊢) = (q_scan, ⊢, R)
+
+État d'arrêt :
+q_halt</div>
+      </section>
+
+      <section class="card">
+        <div class="tape-wrapper">
+          <div id="tape" class="tape"></div>
+        </div>
+        <div id="explanation" class="explanation"></div>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    const BLANK = "□";
+    const START = "⊢";
+
+    let tape = [];
+    let head = 0;
+    let state = "q0";
+    let steps = 0;
+    let history = [];
+    let timer = null;
+    let initialArray = [3, 2, 4];
+
+    const tapeEl = document.getElementById("tape");
+    const explanationEl = document.getElementById("explanation");
+    const stateView = document.getElementById("stateView");
+    const headView = document.getElementById("headView");
+    const stepsView = document.getElementById("stepsView");
+    const sumView = document.getElementById("sumView");
+
+    const loadBtn = document.getElementById("loadBtn");
+    const stepBtn = document.getElementById("stepBtn");
+    const backBtn = document.getElementById("backBtn");
+    const runBtn = document.getElementById("runBtn");
+    const pauseBtn = document.getElementById("pauseBtn");
+    const resetBtn = document.getElementById("resetBtn");
+    const arrayInput = document.getElementById("arrayInput");
+
+    function parseArray() {
+      const raw = arrayInput.value.trim();
+      if (!raw) return [];
+
+      const values = raw.split(",").map(x => Number(x.trim()));
+      if (values.some(n => !Number.isInteger(n) || n < 0 || n > 30)) {
+        throw new Error("Utilise uniquement des entiers entre 0 et 30.");
+      }
+      return values;
+    }
+
+    function encodeArray(values) {
+      const result = [START];
+      for (const n of values) {
+        result.push("#");
+        for (let i = 0; i < n; i++) result.push("1");
+      }
+      result.push("#");
+      result.push("|");
+      for (let i = 0; i < 12; i++) result.push(BLANK);
+      return result;
+    }
+
+    function loadMachine() {
+      pause();
+      try {
+        initialArray = parseArray();
+        tape = encodeArray(initialArray);
+        head = 0;
+        state = "q0";
+        steps = 0;
+        history = [];
+        render("Machine chargée. Clique sur “Une étape” ou “Lancer”.");
+      } catch (e) {
+        explanationEl.innerHTML = `<span class="error">${e.message}</span>`;
+      }
+    }
+
+    function ensureSpace() {
+      while (head >= tape.length) tape.push(BLANK);
+      const blankTail = tape.slice(-4).every(x => x === BLANK);
+      if (!blankTail) tape.push(BLANK, BLANK, BLANK, BLANK);
+    }
+
+    function currentSymbol() {
+      ensureSpace();
+      return tape[head] ?? BLANK;
+    }
+
+    function write(symbol) {
+      ensureSpace();
+      tape[head] = symbol;
+    }
+
+    function move(direction) {
+      if (direction === "R") head++;
+      if (direction === "L") head = Math.max(0, head - 1);
+      ensureSpace();
+    }
+
+    function step() {
+      if (state === "q_halt") {
+        render("La machine est déjà arrêtée.");
+        return;
+      }
+
+      const symbol = currentSymbol();
+      let message = "";
+
+      history.push(snapshot());
+
+      switch (state) {
+        case "q0":
+          state = "q_scan";
+          move("R");
+          message = "Initialisation : la tête se place après le marqueur de début ⊢.";
+          break;
+
+        case "q_scan":
+          if (symbol === "#" || symbol === "x") {
+            move("R");
+            message = `Recherche dans le tableau : le symbole ${symbol} est ignoré.`;
+          } else if (symbol === "1") {
+            write("x");
+            state = "q_go_result";
+            move("R");
+            message = "Un 1 non traité est trouvé : on le remplace par x, puis on va ajouter 1 au résultat.";
+          } else if (symbol === "|") {
+            state = "q_halt";
+            message = "La machine atteint | sans trouver de 1 restant : tous les entiers ont été additionnés.";
+            pause();
+          } else {
+            move("R");
+            message = `Symbole ${symbol} ignoré pendant la recherche.`;
+          }
+          break;
+
+        case "q_go_result":
+          if (symbol === "|") {
+            state = "q_append";
+            move("R");
+            message = "Séparateur | trouvé : on entre dans la zone résultat.";
+          } else {
+            move("R");
+            message = "Déplacement vers la droite jusqu'à la zone résultat.";
+          }
+          break;
+
+        case "q_append":
+          if (symbol === "1") {
+            move("R");
+            message = "On avance à la fin de la somme déjà écrite.";
+          } else if (symbol === BLANK) {
+            write("1");
+            state = "q_return";
+            move("L");
+            message = "Case blanche trouvée : on écrit un nouveau 1 dans le résultat.";
+          } else {
+            move("R");
+            message = "On cherche la première case blanche du résultat.";
+          }
+          break;
+
+        case "q_return":
+          if (symbol === START) {
+            state = "q_scan";
+            move("R");
+            message = "Retour au début ⊢ : on repart chercher un autre 1 dans le tableau.";
+          } else {
+            move("L");
+            message = "Retour vers le début du ruban.";
+          }
+          break;
+      }
+
+      steps++;
+      render(message);
+    }
+
+    function snapshot() {
+      return {
+        tape: [...tape],
+        head,
+        state,
+        steps
+      };
+    }
+
+    function restore(snapshotValue) {
+      tape = [...snapshotValue.tape];
+      head = snapshotValue.head;
+      state = snapshotValue.state;
+      steps = snapshotValue.steps;
+      ensureSpace();
+    }
+
+    function backOneStep() {
+      pause();
+      if (history.length === 0) {
+        render("Aucune étape précédente disponible.");
+        return;
+      }
+
+      const previous = history.pop();
+      restore(previous);
+      render("Retour à l'état précédent de la machine.");
+    }
+
+    function getDecodedSum() {
+      const pipeIndex = tape.indexOf("|");
+      if (pipeIndex < 0) return 0;
+      return tape.slice(pipeIndex + 1).filter(x => x === "1").length;
+    }
+
+    function cssClassFor(symbol) {
+      if (symbol === "1") return "one";
+      if (symbol === "x") return "marked";
+      if (symbol === "#") return "sep";
+      if (symbol === "|") return "pipe";
+      if (symbol === BLANK) return "blank";
+      if (symbol === START) return "start";
+      return "";
+    }
+
+    function render(message) {
+      const visibleTape = trimTapeForDisplay(tape);
+      tapeEl.innerHTML = "";
+
+      visibleTape.forEach((symbol, index) => {
+        const block = document.createElement("div");
+        block.className = "cell-block" + (index === head ? " active" : "");
+
+        const marker = document.createElement("div");
+        marker.className = "head-marker";
+        marker.textContent = "▲";
+
+        const cell = document.createElement("div");
+        cell.className = `cell ${cssClassFor(symbol)}`;
+        cell.textContent = symbol;
+
+        block.appendChild(marker);
+        block.appendChild(cell);
+        tapeEl.appendChild(block);
+      });
+
+      stateView.textContent = state;
+      stateView.className = state === "q_halt" ? "halt" : "";
+      headView.textContent = String(head);
+      stepsView.textContent = String(steps);
+      sumView.textContent = String(getDecodedSum());
+      backBtn.disabled = history.length === 0;
+
+      const finalMessage = state === "q_halt"
+        ? `<strong>Arrêt.</strong> Somme finale : <span class="ok">${getDecodedSum()}</span>.`
+        : `<strong>${state}</strong> — ${message}`;
+
+      explanationEl.innerHTML = finalMessage;
+
+      const activeCell = tapeEl.querySelector(".active");
+      if (activeCell) {
+        activeCell.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+      }
+    }
+
+    function trimTapeForDisplay(source) {
+      let lastUseful = source.length - 1;
+      while (lastUseful > 0 && source[lastUseful] === BLANK && source[lastUseful - 1] === BLANK) {
+        lastUseful--;
+      }
+      return source.slice(0, Math.max(lastUseful + 2, 15));
+    }
+
+    function run() {
+      if (timer || state === "q_halt") return;
+      timer = setInterval(step, 280);
+    }
+
+    function pause() {
+      if (timer) clearInterval(timer);
+      timer = null;
+    }
+
+    loadBtn.addEventListener("click", loadMachine);
+    stepBtn.addEventListener("click", step);
+    backBtn.addEventListener("click", backOneStep);
+    runBtn.addEventListener("click", run);
+    pauseBtn.addEventListener("click", pause);
+    resetBtn.addEventListener("click", () => {
+      arrayInput.value = initialArray.join(",");
+      loadMachine();
+    });
+
+    loadMachine();
+  </script>
+</body>
+</html>
